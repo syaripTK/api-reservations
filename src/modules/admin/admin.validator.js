@@ -49,6 +49,54 @@ const deleteCategoryValidator = [
   param("id").isInt().withMessage("ID harus berupa angka"),
 ];
 
+const createUserValidator = [
+  body("username")
+    .trim()
+    .notEmpty()
+    .withMessage("Username harus diisi")
+    .isLength({ min: 3 })
+    .withMessage("Username minimal 3 karakter"),
+  body("full_name").trim().notEmpty().withMessage("Nama lengkap harus diisi"),
+  body("password")
+    .trim()
+    .notEmpty()
+    .withMessage("Password harus diisi")
+    .isLength({ min: 6 })
+    .withMessage("Password minimal 6 karakter"),
+  body("role")
+    .optional()
+    .isIn(["admin", "user"])
+    .withMessage("Role harus: admin atau user"),
+];
+
+const updateUserValidator = [
+  param("id").isInt().withMessage("ID harus berupa angka"),
+  body("username")
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage("Username tidak bisa kosong")
+    .isLength({ min: 3 })
+    .withMessage("Username minimal 3 karakter"),
+  body("full_name")
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage("Nama lengkap tidak bisa kosong"),
+  body("role")
+    .optional()
+    .isIn(["admin", "user"])
+    .withMessage("Role harus: admin atau user"),
+];
+
+const deleteUserValidator = [
+  param("id").isInt().withMessage("ID harus berupa angka"),
+];
+
+const getUserValidator = [
+  param("id").isInt().withMessage("ID harus berupa angka"),
+];
+
 module.exports = {
   createAssetValidator,
   updateAssetValidator,
@@ -56,4 +104,8 @@ module.exports = {
   createCategoryValidator,
   updateCategoryValidator,
   deleteCategoryValidator,
+  createUserValidator,
+  updateUserValidator,
+  deleteUserValidator,
+  getUserValidator,
 };

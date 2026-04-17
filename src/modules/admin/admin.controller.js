@@ -183,6 +183,81 @@ class AdminController {
       next(error);
     }
   }
+
+  // ====== USERS CONTROLLER ======
+  static async getAllUsers(req, res, next) {
+    try {
+      const { role, page, limit } = req.query;
+
+      const filter = {
+        role: role || undefined,
+        page: page ? parseInt(page) : 1,
+        limit: limit ? parseInt(limit) : 10,
+      };
+
+      const result = await AdminService.getAllUsersAdmin(filter);
+
+      return successResponse(res, 200, "Daftar user berhasil diambil", result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getUserDetail(req, res, next) {
+    try {
+      const { id } = req.params;
+      const user = await AdminService.getUserDetail(parseInt(id));
+
+      return successResponse(res, 200, "Detail user berhasil diambil", user);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async createUser(req, res, next) {
+    try {
+      const userData = {
+        username: req.body.username,
+        full_name: req.body.full_name,
+        password: req.body.password,
+        role: req.body.role,
+      };
+
+      const user = await AdminService.createUser(userData);
+
+      return successResponse(res, 201, "User berhasil dibuat", user);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateUser(req, res, next) {
+    try {
+      const { id } = req.params;
+      const userData = {
+        username: req.body.username,
+        full_name: req.body.full_name,
+        role: req.body.role,
+      };
+
+      const user = await AdminService.updateUser(parseInt(id), userData);
+
+      return successResponse(res, 200, "User berhasil diperbarui", user);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async deleteUser(req, res, next) {
+    try {
+      const { id } = req.params;
+      const result = await AdminService.deleteUser(parseInt(id));
+
+      return successResponse(res, 200, result.message);
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = AdminController;

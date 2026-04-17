@@ -1,6 +1,8 @@
-const { Assets, Categories } = require("../../db/models");
+const { Assets, Categories, Users, Reservations } = require("../../db/models");
 const fs = require("fs");
 const path = require("path");
+const bcrypt = require("bcrypt");
+const { Op } = require("sequelize");
 
 class AdminService {
   // ====== ASSETS MANAGEMENT ======
@@ -212,6 +214,154 @@ class AdminService {
       }
 
       return category;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // ====== USERS MANAGEMENT ======
+  static async getAllUsersAdmin(filter = {}) {
+    try {
+      const { role, page = 1, limit = 10 } = filter;
+      const offset = (page - 1) * limit;
+
+      const where = {};
+      if (role) where.role = role;
+
+      const { count, rows } = await Users.findAndCountAll({
+        where,
+        attributes: { exclude: ["password"] },
+        offset,
+        limit,
+        order: [["id", "DESC"]],
+      });
+
+      const totalPages = Math.ceil(count / limit);
+
+      return {
+        data: rows,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalItems: count,
+          itemsPerPage: limit,
+        },
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async getUserDetail(userId) {
+    try {
+      const user = await Users.findByPk(userId, {
+        attributes: { exclude: ["password"] },
+        include: [
+          {
+            model: Reservations,
+            as: "reservations",
+            attributes: ["id", "status", "start_date", "end_date"],
+          },
+        ],
+      });
+
+      if (!user) {
+        const error = new Error("User tidak ditemukan");
+        error.status = 404;
+        throw error;
+      }
+
+      return user;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async createUser(userData) {
+    try {
+      const { username, full_name, password, role } = userData;
+
+      // Check if username already exists
+      const existingUser = await Users.findOne({ where: { username } });
+      if (existingUser) {
+        const error = new Error("Username sudah digunakan");
+        error.status = 409;
+        throw error;
+      }
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      const user = await Users.create({
+        username,
+        full_name,
+        password: hashedPassword,
+        role: role || "user",
+      });
+
+      // Return user without password
+      const userResponse = user.toJSON();
+      delete userResponse.password;
+      return userResponse;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async updateUser(userId, userData) {
+    try {
+      const user = await Users.findByPk(userId);
+
+      if (!user) {
+        const error = new Error("User tidak ditemukan");
+        error.status = 404;
+        throw error;
+      }
+
+      const dataToUpdate = {};
+
+      if (userData.username) {
+        // Check if new username is not already used by another user
+        const existingUser = await Users.findOne({
+          where: { username: userData.username, id: { [Op.ne]: userId } },
+        });
+        if (existingUser) {
+          const error = new Error("Username sudah digunakan");
+          error.status = 409;
+          throw error;
+        }
+        dataToUpdate.username = userData.username;
+      }
+
+      if (userData.full_name) dataToUpdate.full_name = userData.full_name;
+      if (userData.role) dataToUpdate.role = userData.role;
+
+      await user.update(dataToUpdate);
+
+      // Return user without password
+      const userResponse = user.toJSON();
+      delete userResponse.password;
+      return userResponse;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async deleteUser(userId) {
+    try {
+      const user = await Users.findByPk(userId);
+
+      if (!user) {
+        const error = new Error("User tidak ditemukan");
+        error.status = 404;
+        throw error;
+      }
+
+      // Delete associated reservations first (optional - depends on your business logic)
+      // await user.destroy({ cascade: true });
+
+      await user.destroy();
+      return { message: "User berhasil dihapus" };
     } catch (error) {
       throw error;
     }

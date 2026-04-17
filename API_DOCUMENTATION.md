@@ -287,6 +287,152 @@ image: file (optional, jpg/png/jpeg, max 5MB)
 
 - **Access**: Protected - Admin Only
 
+### Get All Users
+
+**GET** `/api/v1/admin/users`
+
+- **Access**: Protected - Admin Only
+- **Query Parameters**:
+  - `role` (optional): Filter by role ('admin' or 'user')
+  - `page` (optional): default 1
+  - `limit` (optional): default 10
+- **Response**:
+
+```json
+{
+  "status": "success",
+  "message": "Daftar user berhasil diambil",
+  "data": [
+    {
+      "id": 2,
+      "username": "john",
+      "full_name": "John Doe",
+      "role": "user",
+      "createdAt": "2026-04-16T10:00:00Z",
+      "updatedAt": "2026-04-16T10:00:00Z"
+    }
+  ],
+  "pagination": {
+    "currentPage": 1,
+    "totalPages": 1,
+    "totalItems": 5,
+    "itemsPerPage": 10
+  }
+}
+```
+
+### Get User Detail
+
+**GET** `/api/v1/admin/users/:id`
+
+- **Access**: Protected - Admin Only
+- **Response**:
+
+```json
+{
+  "status": "success",
+  "message": "Detail user berhasil diambil",
+  "data": {
+    "id": 2,
+    "username": "john",
+    "full_name": "John Doe",
+    "role": "user",
+    "reservations": [
+      {
+        "id": 1,
+        "status": "approved",
+        "start_date": "2026-04-17T00:00:00Z",
+        "end_date": "2026-04-20T00:00:00Z"
+      }
+    ]
+  }
+}
+```
+
+### Create User
+
+**POST** `/api/v1/admin/users`
+
+- **Access**: Protected - Admin Only
+- **Body**:
+
+```json
+{
+  "username": "newuser",
+  "full_name": "New User Name",
+  "password": "password123",
+  "role": "user"
+}
+```
+
+- **Validation**:
+  - `username`: Required, minimum 3 characters, must be unique
+  - `full_name`: Required
+  - `password`: Required, minimum 6 characters (will be hashed with bcrypt)
+  - `role`: Optional, default 'user' (can be 'admin' or 'user')
+- **Response**: Created user object (password excluded)
+
+```json
+{
+  "status": "success",
+  "message": "User berhasil dibuat",
+  "data": {
+    "id": 3,
+    "username": "newuser",
+    "full_name": "New User Name",
+    "role": "user"
+  }
+}
+```
+
+### Update User
+
+**PUT** `/api/v1/admin/users/:id`
+
+- **Access**: Protected - Admin Only
+- **Body** (all optional):
+
+```json
+{
+  "username": "updatedusername",
+  "full_name": "Updated Full Name",
+  "role": "admin"
+}
+```
+
+- **Validation**:
+  - `username`: Minimum 3 characters, must be unique (if changed)
+  - `full_name`: Cannot be empty (if provided)
+  - `role`: Must be 'admin' or 'user' (if provided)
+- **Response**: Updated user object
+
+```json
+{
+  "status": "success",
+  "message": "User berhasil diperbarui",
+  "data": {
+    "id": 2,
+    "username": "updatedusername",
+    "full_name": "Updated Full Name",
+    "role": "admin"
+  }
+}
+```
+
+### Delete User
+
+**DELETE** `/api/v1/admin/users/:id`
+
+- **Access**: Protected - Admin Only
+- **Response**:
+
+```json
+{
+  "status": "success",
+  "message": "User berhasil dihapus"
+}
+```
+
 ---
 
 ## 5. RESERVATIONS MODULE
@@ -387,6 +533,7 @@ image: file (optional, jpg/png/jpeg, max 5MB)
 | Reservations (Get All, Approve, Reject) | ❌   | ✅    |
 | Admin (Assets CRUD)                     | ❌   | ✅    |
 | Admin (Categories CRUD)                 | ❌   | ✅    |
+| Admin (Users CRUD)                      | ❌   | ✅    |
 
 ---
 

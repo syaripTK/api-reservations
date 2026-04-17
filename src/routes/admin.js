@@ -7,6 +7,10 @@ const {
   createCategoryValidator,
   updateCategoryValidator,
   deleteCategoryValidator,
+  createUserValidator,
+  updateUserValidator,
+  deleteUserValidator,
+  getUserValidator,
 } = require("../modules/admin/admin.validator");
 const validate = require("../shared/middlewares/errors/validate");
 const verifyToken = require("../shared/middlewares/auth.middleware");
@@ -67,6 +71,37 @@ router.delete(
   deleteCategoryValidator,
   validate,
   AdminController.deleteCategory,
+);
+
+// ====== USERS ROUTES ======
+router.get("/users", AdminController.getAllUsers);
+
+router.get(
+  "/users/:id",
+  getUserValidator,
+  validate,
+  AdminController.getUserDetail,
+);
+
+router.post(
+  "/users",
+  createUserValidator,
+  validate,
+  AdminController.createUser,
+);
+
+router.put(
+  "/users/:id",
+  updateUserValidator,
+  validate,
+  AdminController.updateUser,
+);
+
+router.delete(
+  "/users/:id",
+  deleteUserValidator,
+  validate,
+  AdminController.deleteUser,
 );
 
 module.exports = router;
