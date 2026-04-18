@@ -4,6 +4,7 @@ const {
   createAssetValidator,
   updateAssetValidator,
   deleteAssetValidator,
+  getAssetDetailValidator,
   createCategoryValidator,
   updateCategoryValidator,
   deleteCategoryValidator,
@@ -23,6 +24,13 @@ router.use(verifyToken(["admin"]));
 
 // ====== ASSETS ROUTES ======
 router.get("/assets", AdminController.getAllAssets);
+
+router.get(
+  "/assets/:id",
+  getAssetDetailValidator,
+  validate,
+  AdminController.getAssetDetail,
+);
 
 router.post(
   "/assets",

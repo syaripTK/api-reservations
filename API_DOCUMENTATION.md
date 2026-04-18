@@ -144,6 +144,27 @@ npm run dev
 - **Access**: Protected
 - **Response**: Single asset object with category details
 
+```json
+{
+  "status": "success",
+  "message": "Detail aset berhasil diambil",
+  "data": {
+    "id": 1,
+    "name": "Laptop Dell",
+    "sku": "LAPTOP001",
+    "status": "available",
+    "description": "High-performance laptop",
+    "image_url": "/uploads/image-file.jpg",
+    "category": {
+      "id": 1,
+      "name": "Electronics"
+    },
+    "createdAt": "2026-04-16T10:00:00Z",
+    "updatedAt": "2026-04-16T10:00:00Z"
+  }
+}
+```
+
 ---
 
 ## 3. USERS MODULE
@@ -180,6 +201,28 @@ npm run dev
 }
 ```
 
+### Get User Profile
+
+**GET** `/api/v1/users/:id`
+
+- **Access**: Protected
+- **Response**:
+
+```json
+{
+  "status": "success",
+  "message": "Detail user berhasil diambil",
+  "data": {
+    "id": 2,
+    "username": "john",
+    "full_name": "John Doe",
+    "role": "user",
+    "createdAt": "2026-04-16T10:00:00Z",
+    "updatedAt": "2026-04-16T10:00:00Z"
+  }
+}
+```
+
 ### Update Profile
 
 **PUT** `/api/v1/users/profile`
@@ -190,7 +233,7 @@ npm run dev
 ```json
 {
   "full_name": "New Name",
-  "password": "new_password" // optional
+  "password": "new_password"
 }
 ```
 
@@ -200,12 +243,19 @@ npm run dev
 
 ### 🔴 ALL ADMIN ENDPOINTS REQUIRE ADMIN ROLE
 
-### Get All Asets (Admin View)
+### Get All Assets (Admin View)
 
 **GET** `/api/v1/admin/assets`
 
 - **Access**: Protected - Admin Only
 - **Query**: Same as regular assets endpoint
+
+### Get Asset Detail (Admin View)
+
+**GET** `/api/v1/admin/assets/:id`
+
+- **Access**: Protected - Admin Only
+- **Response**: Single asset object with category details
 
 ### Create Asset
 
@@ -479,6 +529,38 @@ image: file (optional, jpg/png/jpeg, max 5MB)
 
 - **Access**: Protected
 - **Response**: List peminjaman user dengan detail aset
+
+### Get Reservation Detail
+
+**GET** `/api/v1/reservations/:id`
+
+- **Access**: Protected (User can access their own, Admin can access all)
+- **Response**:
+
+```json
+{
+  "status": "success",
+  "message": "Detail peminjaman berhasil diambil",
+  "data": {
+    "id": 1,
+    "status": "pending",
+    "start_date": "2026-04-17T00:00:00Z",
+    "end_date": "2026-04-20T00:00:00Z",
+    "request_date": "2026-04-16T10:00:00Z",
+    "user": {
+      "id": 2,
+      "username": "john",
+      "full_name": "John Doe"
+    },
+    "asset": {
+      "id": 5,
+      "name": "Laptop Dell",
+      "sku": "LAPTOP001",
+      "status": "booked"
+    }
+  }
+}
+```
 
 ### Admin: Get All Reservations
 

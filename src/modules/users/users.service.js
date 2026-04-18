@@ -57,6 +57,24 @@ class UsersService {
       throw error;
     }
   }
+
+  static async getUserById(userId) {
+    try {
+      const user = await Users.findByPk(userId, {
+        attributes: { exclude: ["password"] },
+      });
+
+      if (!user) {
+        const error = new Error("User tidak ditemukan");
+        error.status = 404;
+        throw error;
+      }
+
+      return user;
+    } catch (error) {
+      throw error;
+    }
+  }
 }
 
 module.exports = UsersService;

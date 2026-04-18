@@ -130,6 +130,30 @@ class AdminService {
     }
   }
 
+  static async getAssetById(assetId) {
+    try {
+      const asset = await Assets.findByPk(assetId, {
+        include: [
+          {
+            model: Categories,
+            as: "category",
+            attributes: ["id", "name"],
+          },
+        ],
+      });
+
+      if (!asset) {
+        const error = new Error("Aset tidak ditemukan");
+        error.status = 404;
+        throw error;
+      }
+
+      return asset;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   // ====== CATEGORIES MANAGEMENT ======
   static async createCategory(categoryData) {
     try {

@@ -119,6 +119,46 @@ router.get("/my-reservations", async (req, res, next) => {
   }
 });
 
+// Get reservation detail
+router.get(
+  "/:id",
+  verifyToken(),
+  [param("id").isInt().withMessage("ID harus berupa angka")],
+  validate,
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const reservationId = parseInt(id);
+
+      const reservation = await Reservations.findByPk(reservationId, {
+        include: [
+          {
+            association: "user",
+            attributes: ["id", "username", "full_name"],
+          },
+          {
+            association: "asset",
+            attributes: ["id", "name", "sku", "status"],
+          },
+        ],
+      });
+
+      if (!reservation) {
+        return errorResponse(res, 404, "Peminjaman tidak ditemukan");
+      }
+
+      return successResponse(
+        res,
+        200,
+        "Detail peminjaman berhasil diambil",
+        reservation,
+      );
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 // Admin only: Get all reservations
 router.get("/", verifyToken(["admin"]), async (req, res, next) => {
   try {

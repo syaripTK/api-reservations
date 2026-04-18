@@ -102,6 +102,17 @@ class AdminController {
     }
   }
 
+  static async getAssetDetail(req, res, next) {
+    try {
+      const { id } = req.params;
+      const asset = await AdminService.getAssetById(parseInt(id));
+
+      return successResponse(res, 200, "Detail aset berhasil diambil", asset);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   // ====== CATEGORIES CONTROLLER ======
   static async createCategory(req, res, next) {
     try {

@@ -33,6 +33,17 @@ class UsersController {
       next(error);
     }
   }
+
+  static async getUserById(req, res, next) {
+    try {
+      const { id } = req.params;
+      const user = await UsersService.getUserById(parseInt(id));
+
+      return successResponse(res, 200, "Detail user berhasil diambil", user);
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = UsersController;

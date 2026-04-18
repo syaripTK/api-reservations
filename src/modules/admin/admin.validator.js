@@ -97,10 +97,15 @@ const getUserValidator = [
   param("id").isInt().withMessage("ID harus berupa angka"),
 ];
 
+const getAssetDetailValidator = [
+  param("id").isInt().withMessage("ID harus berupa angka"),
+];
+
 module.exports = {
   createAssetValidator,
   updateAssetValidator,
   deleteAssetValidator,
+  getAssetDetailValidator,
   createCategoryValidator,
   updateCategoryValidator,
   deleteCategoryValidator,

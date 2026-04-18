@@ -12,4 +12,8 @@ const updateProfileValidator = [
     .withMessage("Password minimal 5 karakter"),
 ];
 
-module.exports = { updateProfileValidator };
+const getUserByIdValidator = [
+  param("id").isInt().withMessage("ID harus berupa angka"),
+];
+
+module.exports = { updateProfileValidator, getUserByIdValidator };

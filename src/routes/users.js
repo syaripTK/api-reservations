@@ -1,6 +1,9 @@
 const express = require("express");
 const UsersController = require("../modules/users/users.controller");
-const { updateProfileValidator } = require("../modules/users/users.validator");
+const {
+  updateProfileValidator,
+  getUserByIdValidator,
+} = require("../modules/users/users.validator");
 const validate = require("../shared/middlewares/errors/validate");
 const verifyToken = require("../shared/middlewares/auth.middleware");
 
@@ -15,5 +18,13 @@ router.put(
 );
 
 router.get("/reservations", verifyToken(), UsersController.getMyReservations);
+
+router.get(
+  "/:id",
+  verifyToken(),
+  getUserByIdValidator,
+  validate,
+  UsersController.getUserById,
+);
 
 module.exports = router;
