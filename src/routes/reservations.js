@@ -243,12 +243,19 @@ router.put(
 router.put(
   "/:id/reject",
   verifyToken(["admin"]),
-  [param("id").isInt().withMessage("ID harus berupa angka")],
+  [
+    param("id").isInt().withMessage("ID harus berupa angka"),
+    body("reject_reason")
+      .trim()
+      .notEmpty()
+      .withMessage("Alasan penolakan harus diisi"),
+  ],
   validate,
   async (req, res, next) => {
     const transaction = await sequelize.transaction();
     try {
       const { id } = req.params;
+      const { reject_reason } = req.body;
 
       const reservation = await Reservations.findByPk(id, { transaction });
 
@@ -266,8 +273,11 @@ router.put(
         );
       }
 
-      // Update reservation status
-      await reservation.update({ status: "rejected" }, { transaction });
+      // Update reservation status and reject reason
+      await reservation.update(
+        { status: "rejected", reject_reason },
+        { transaction },
+      );
 
       // Release asset back to available
       const asset = await Assets.findByPk(reservation.asset_id, {

@@ -1,4 +1,4 @@
-const { Users } = require("../../db/models");
+const { Users, Categories } = require("../../db/models");
 const { hashPassword } = require("../../shared/utils/helpers");
 
 class UsersService {
@@ -71,6 +71,19 @@ class UsersService {
       }
 
       return user;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async getAllCategories() {
+    try {
+      const categories = await Categories.findAll({
+        attributes: ["id", "name", "description"],
+        order: [["id", "ASC"]],
+      });
+
+      return categories;
     } catch (error) {
       throw error;
     }

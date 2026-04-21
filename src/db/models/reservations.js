@@ -40,6 +40,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.ENUM("pending", "approved", "rejected", "returned"),
         defaultValue: "pending",
       },
+      reject_reason: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
       request_date: {
         type: DataTypes.DATE,
         defaultValue: Date.now,

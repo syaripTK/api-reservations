@@ -19,6 +19,8 @@ router.put(
 
 router.get("/reservations", verifyToken(), UsersController.getMyReservations);
 
+router.get("/categories/all", UsersController.getAllCategories);
+
 router.get(
   "/:id",
   verifyToken(),

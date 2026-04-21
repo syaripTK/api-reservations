@@ -44,6 +44,21 @@ class UsersController {
       next(error);
     }
   }
+
+  static async getAllCategories(req, res, next) {
+    try {
+      const categories = await UsersService.getAllCategories();
+
+      return successResponse(
+        res,
+        200,
+        "Daftar kategori berhasil diambil",
+        categories,
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = UsersController;

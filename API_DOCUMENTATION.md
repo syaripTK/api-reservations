@@ -585,11 +585,38 @@ image: file (optional, jpg/png/jpeg, max 5MB)
 **PUT** `/api/v1/reservations/:id/reject`
 
 - **Access**: Protected - Admin Only
+- **Body**:
+
+```json
+{
+  "reject_reason": "Aset tidak sesuai dengan kebutuhan"
+}
+```
+
+- **Validation**:
+  - `reject_reason`: Required, harus diisi dengan alasan penolakan
 - **Behavior**:
   - Status berubah dari "pending" → "rejected"
+  - ✅ Menyimpan alasan penolakan di kolom `reject_reason`
   - ✅ Aset berubah kembali menjadi: "available"
   - ✅ Menggunakan Sequelize Transaction
 - **Response**: Updated reservation object
+
+```json
+{
+  "status": "success",
+  "message": "Peminjaman berhasil ditolak",
+  "data": {
+    "id": 1,
+    "user_id": 2,
+    "asset_id": 5,
+    "status": "rejected",
+    "reject_reason": "Aset tidak sesuai dengan kebutuhan",
+    "start_date": "2026-04-17T00:00:00Z",
+    "end_date": "2026-04-20T00:00:00Z"
+  }
+}
+```
 
 ### User/Admin: Return Asset
 
@@ -662,7 +689,8 @@ Semua error mengikuti format berikut:
 ✅ Comprehensive Error Handling  
 ✅ Asset Status Management (available → booked → available/returned)  
 ✅ Pagination untuk list endpoints  
-✅ CORS support
+✅ CORS support  
+✅ Rejection Reason Tracking - Admin dapat menambahkan alasan penolakan saat reject peminjaman
 
 ---
 
