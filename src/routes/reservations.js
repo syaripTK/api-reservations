@@ -1,7 +1,7 @@
 const express = require("express");
 const { body, param } = require("express-validator");
-const { Sequelize } = require("sequelize");
-const { Reservations, Assets, sequelize } = require("../db/models");
+const { Sequelize, Op } = require("sequelize");
+const { Reservations, Assets, Users, sequelize } = require("../db/models");
 const validate = require("../shared/middlewares/errors/validate");
 const verifyToken = require("../shared/middlewares/auth.middleware");
 const { successResponse, errorResponse } = require("../shared/utils/response");
@@ -356,6 +356,386 @@ router.put(
       );
     } catch (error) {
       await transaction.rollback();
+      next(error);
+    }
+  },
+);
+
+// User: Cancel pending reservation
+router.delete(
+  "/:id/cancel",
+  [param("id").isInt().withMessage("ID harus berupa angka")],
+  validate,
+  async (req, res, next) => {
+    const transaction = await sequelize.transaction();
+    try {
+      const { id } = req.params;
+      const user_id = req.user.id;
+
+      const reservation = await Reservations.findByPk(id, { transaction });
+
+      if (!reservation) {
+        await transaction.rollback();
+        return errorResponse(res, 404, "Peminjaman tidak ditemukan");
+      }
+
+      // Check if user is authorized (owner)
+      if (reservation.user_id !== user_id) {
+        await transaction.rollback();
+        return errorResponse(
+          res,
+          403,
+          "Anda hanya bisa membatalkan peminjaman milik Anda sendiri",
+        );
+      }
+
+      if (reservation.status !== "pending") {
+        await transaction.rollback();
+        return errorResponse(
+          res,
+          400,
+          "Hanya peminjaman dengan status pending yang bisa dibatalkan",
+        );
+      }
+
+      // Update reservation status
+      await reservation.update({ status: "rejected" }, { transaction });
+
+      // Release asset back to available
+      const asset = await Assets.findByPk(reservation.asset_id, {
+        transaction,
+      });
+      if (asset) {
+        await asset.update({ status: "available" }, { transaction });
+      }
+
+      await transaction.commit();
+
+      return successResponse(
+        res,
+        200,
+        "Permintaan peminjaman berhasil dibatalkan",
+        reservation,
+      );
+    } catch (error) {
+      await transaction.rollback();
+      next(error);
+    }
+  },
+);
+
+// User Dashboard: Get user statistics
+router.get("/dashboard/user-stats", async (req, res, next) => {
+  try {
+    const user_id = req.user.id;
+
+    // Get reservation statistics
+    const reservationStats = await Reservations.findAll({
+      where: { user_id },
+      attributes: [
+        "status",
+        [Sequelize.fn("COUNT", Sequelize.col("id")), "count"],
+      ],
+      group: ["status"],
+    });
+
+    // Get recent reservations
+    const recentReservations = await Reservations.findAll({
+      where: { user_id },
+      include: [
+        {
+          association: "asset",
+          attributes: ["id", "name", "sku"],
+        },
+      ],
+      order: [["created_at", "DESC"]],
+      limit: 5,
+    });
+
+    // Transform stats to object
+    const stats = {
+      pending: 0,
+      approved: 0,
+      rejected: 0,
+      returned: 0,
+      total: 0,
+    };
+
+    reservationStats.forEach((stat) => {
+      stats[stat.status] = parseInt(stat.dataValues.count);
+      stats.total += parseInt(stat.dataValues.count);
+    });
+
+    return successResponse(
+      res,
+      200,
+      "Statistik dashboard user berhasil diambil",
+      {
+        stats,
+        recentReservations,
+      },
+    );
+  } catch (error) {
+    next(error);
+  }
+});
+
+// User Dashboard: Get user reservation summary
+router.get("/dashboard/user-summary", async (req, res, next) => {
+  try {
+    const user_id = req.user.id;
+
+    // Get summary data
+    const totalReservations = await Reservations.count({
+      where: { user_id },
+    });
+
+    const approvedReservations = await Reservations.count({
+      where: { user_id, status: "approved" },
+    });
+
+    const pendingReservations = await Reservations.count({
+      where: { user_id, status: "pending" },
+    });
+
+    const returnedReservations = await Reservations.count({
+      where: { user_id, status: "returned" },
+    });
+
+    const rejectedReservations = await Reservations.count({
+      where: { user_id, status: "rejected" },
+    });
+
+    // Get active reservations (approved but not returned)
+    const activeReservations = await Reservations.findAll({
+      where: {
+        user_id,
+        status: "approved",
+      },
+      include: [
+        {
+          association: "asset",
+          attributes: ["id", "name", "sku"],
+        },
+      ],
+      order: [["end_date", "ASC"]],
+    });
+
+    return successResponse(
+      res,
+      200,
+      "Ringkasan dashboard user berhasil diambil",
+      {
+        totalReservations,
+        approvedReservations,
+        pendingReservations,
+        returnedReservations,
+        rejectedReservations,
+        activeReservations,
+      },
+    );
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Admin Dashboard: Get overall statistics
+router.get(
+  "/dashboard/admin-stats",
+  verifyToken(["admin"]),
+  async (req, res, next) => {
+    try {
+      // Get reservation statistics by status
+      const reservationStats = await Reservations.findAll({
+        attributes: [
+          "status",
+          [Sequelize.fn("COUNT", Sequelize.col("id")), "count"],
+        ],
+        group: ["status"],
+      });
+
+      // Get total counts
+      const totalReservations = await Reservations.count();
+      const totalUsers = await Users.count();
+
+      // Transform stats to object
+      const stats = {
+        total: totalReservations,
+        pending: 0,
+        approved: 0,
+        rejected: 0,
+        returned: 0,
+        totalUsers,
+      };
+
+      reservationStats.forEach((stat) => {
+        stats[stat.status] = parseInt(stat.dataValues.count);
+      });
+
+      // Get recent reservations
+      const recentReservations = await Reservations.findAll({
+        include: [
+          {
+            association: "user",
+            attributes: ["id", "username", "full_name"],
+          },
+          {
+            association: "asset",
+            attributes: ["id", "name", "sku"],
+          },
+        ],
+        order: [["created_at", "DESC"]],
+        limit: 10,
+      });
+
+      return successResponse(
+        res,
+        200,
+        "Statistik dashboard admin berhasil diambil",
+        {
+          stats,
+          recentReservations,
+        },
+      );
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// Admin Dashboard: Get summary and insights
+router.get(
+  "/dashboard/admin-summary",
+  verifyToken(["admin"]),
+  async (req, res, next) => {
+    try {
+      const { startDate, endDate } = req.query;
+      const where = {};
+
+      // Add date filter if provided
+      if (startDate || endDate) {
+        where.created_at = {};
+        if (startDate) {
+          where.created_at[Op.gte] = new Date(startDate);
+        }
+        if (endDate) {
+          where.created_at[Op.lte] = new Date(endDate);
+        }
+      }
+
+      // Get pending reservations
+      const pendingReservations = await Reservations.findAll({
+        where: { ...where, status: "pending" },
+        include: [
+          {
+            association: "user",
+            attributes: ["id", "username", "full_name"],
+          },
+          {
+            association: "asset",
+            attributes: ["id", "name", "sku"],
+          },
+        ],
+        order: [["created_at", "DESC"]],
+      });
+
+      // Get approval rate
+      const totalReservations = await Reservations.count({ where });
+      const approvedCount = await Reservations.count({
+        where: { ...where, status: "approved" },
+      });
+      const rejectedCount = await Reservations.count({
+        where: { ...where, status: "rejected" },
+      });
+
+      const approvalRate =
+        totalReservations > 0
+          ? Math.round((approvedCount / totalReservations) * 100)
+          : 0;
+
+      // Get active reservations (approved and not returned)
+      const activeReservations = await Reservations.findAll({
+        where: { status: "approved" },
+        include: [
+          {
+            association: "user",
+            attributes: ["id", "username", "full_name"],
+          },
+          {
+            association: "asset",
+            attributes: ["id", "name", "sku"],
+          },
+        ],
+        order: [["end_date", "ASC"]],
+      });
+
+      // Get overdue reservations (approved with end_date passed)
+      const now = new Date();
+      const overdueReservations = await Reservations.findAll({
+        where: {
+          status: "approved",
+          end_date: {
+            [Op.lt]: now,
+          },
+        },
+        include: [
+          {
+            association: "user",
+            attributes: ["id", "username", "full_name"],
+          },
+          {
+            association: "asset",
+            attributes: ["id", "name", "sku"],
+          },
+        ],
+      });
+
+      // Get user activity (top users by reservation count)
+      const userActivity = await Users.findAll({
+        attributes: [
+          "id",
+          "username",
+          "full_name",
+          [
+            Sequelize.fn("COUNT", Sequelize.col("reservations.id")),
+            "reservationCount",
+          ],
+        ],
+        include: [
+          {
+            association: "reservations",
+            attributes: [],
+          },
+        ],
+        group: ["users.id"],
+        subQuery: false,
+        order: [
+          [Sequelize.fn("COUNT", Sequelize.col("reservations.id")), "DESC"],
+        ],
+        limit: 10,
+      });
+
+      return successResponse(
+        res,
+        200,
+        "Ringkasan dashboard admin berhasil diambil",
+        {
+          summary: {
+            totalReservations,
+            approvedCount,
+            rejectedCount,
+            approvalRate: `${approvalRate}%`,
+            pendingCount: pendingReservations.length,
+            activeCount: activeReservations.length,
+            overdueCount: overdueReservations.length,
+          },
+          pendingReservations,
+          activeReservations,
+          overdueReservations,
+          userActivity,
+        },
+      );
+    } catch (error) {
       next(error);
     }
   },
