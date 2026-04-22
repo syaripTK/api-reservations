@@ -398,7 +398,7 @@ router.get(
             attributes: [],
           },
         ],
-        group: ["users.id"],
+        group: ["users.id", "users.username", "users.full_name"],
         subQuery: false,
         order: [
           [Sequelize.fn("COUNT", Sequelize.col("reservations.id")), "DESC"],
@@ -586,13 +586,11 @@ router.put(
         );
       }
 
-      // Update reservation status and reject reason
       await reservation.update(
         { status: "rejected", reject_reason },
         { transaction },
       );
 
-      // Release asset back to available
       const asset = await Assets.findByPk(reservation.asset_id, {
         transaction,
       });
