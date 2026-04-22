@@ -480,12 +480,10 @@ router.get("/dashboard/user-stats", async (req, res, next) => {
   }
 });
 
-// User Dashboard: Get user reservation summary
 router.get("/dashboard/user-summary", async (req, res, next) => {
   try {
     const user_id = req.user.id;
 
-    // Get summary data
     const totalReservations = await Reservations.count({
       where: { user_id },
     });
@@ -506,7 +504,6 @@ router.get("/dashboard/user-summary", async (req, res, next) => {
       where: { user_id, status: "rejected" },
     });
 
-    // Get active reservations (approved but not returned)
     const activeReservations = await Reservations.findAll({
       where: {
         user_id,
@@ -539,7 +536,6 @@ router.get("/dashboard/user-summary", async (req, res, next) => {
   }
 });
 
-// Admin Dashboard: Get overall statistics
 router.get(
   "/dashboard/admin-stats",
   verifyToken(["admin"]),
