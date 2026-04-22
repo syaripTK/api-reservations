@@ -398,7 +398,7 @@ router.get(
             attributes: [],
           },
         ],
-        group: ["users.id", "users.username", "users.full_name"],
+        group: ["Users.id", "Users.username", "Users.full_name"],
         subQuery: false,
         order: [
           [Sequelize.fn("COUNT", Sequelize.col("reservations.id")), "DESC"],
