@@ -119,311 +119,6 @@ router.get("/my-reservations", async (req, res, next) => {
   }
 });
 
-// Get reservation detail
-router.get(
-  "/:id",
-  verifyToken(),
-  [param("id").isInt().withMessage("ID harus berupa angka")],
-  validate,
-  async (req, res, next) => {
-    try {
-      const { id } = req.params;
-      const reservationId = parseInt(id);
-
-      const reservation = await Reservations.findByPk(reservationId, {
-        include: [
-          {
-            association: "user",
-            attributes: ["id", "username", "full_name"],
-          },
-          {
-            association: "asset",
-            attributes: ["id", "name", "sku", "status"],
-          },
-        ],
-      });
-
-      if (!reservation) {
-        return errorResponse(res, 404, "Peminjaman tidak ditemukan");
-      }
-
-      return successResponse(
-        res,
-        200,
-        "Detail peminjaman berhasil diambil",
-        reservation,
-      );
-    } catch (error) {
-      next(error);
-    }
-  },
-);
-
-// Admin only: Get all reservations
-router.get("/", verifyToken(["admin"]), async (req, res, next) => {
-  try {
-    const { status, page = 1, limit = 10 } = req.query;
-    const offset = (page - 1) * limit;
-
-    const where = {};
-    if (status) where.status = status;
-
-    const { count, rows } = await Reservations.findAndCountAll({
-      where,
-      include: [
-        {
-          association: "user",
-          attributes: ["id", "username", "full_name"],
-        },
-        {
-          association: "asset",
-          attributes: ["id", "name", "sku"],
-        },
-      ],
-      offset,
-      limit,
-      order: [["id", "DESC"]],
-    });
-
-    const totalPages = Math.ceil(count / limit);
-
-    return successResponse(res, 200, "Daftar peminjaman berhasil diambil", {
-      data: rows,
-      pagination: {
-        currentPage: parseInt(page),
-        totalPages,
-        totalItems: count,
-        itemsPerPage: parseInt(limit),
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Admin only: Approve reservation
-router.put(
-  "/:id/approve",
-  verifyToken(["admin"]),
-  [param("id").isInt().withMessage("ID harus berupa angka")],
-  validate,
-  async (req, res, next) => {
-    try {
-      const { id } = req.params;
-
-      const reservation = await Reservations.findByPk(id);
-
-      if (!reservation) {
-        return errorResponse(res, 404, "Peminjaman tidak ditemukan");
-      }
-
-      if (reservation.status !== "pending") {
-        return errorResponse(
-          res,
-          400,
-          "Hanya peminjaman dengan status pending yang bisa disetujui",
-        );
-      }
-
-      await reservation.update({ status: "approved" });
-
-      return successResponse(
-        res,
-        200,
-        "Peminjaman berhasil disetujui",
-        reservation,
-      );
-    } catch (error) {
-      next(error);
-    }
-  },
-);
-
-// Admin only: Reject reservation
-router.put(
-  "/:id/reject",
-  verifyToken(["admin"]),
-  [
-    param("id").isInt().withMessage("ID harus berupa angka"),
-    body("reject_reason")
-      .trim()
-      .notEmpty()
-      .withMessage("Alasan penolakan harus diisi"),
-  ],
-  validate,
-  async (req, res, next) => {
-    const transaction = await sequelize.transaction();
-    try {
-      const { id } = req.params;
-      const { reject_reason } = req.body;
-
-      const reservation = await Reservations.findByPk(id, { transaction });
-
-      if (!reservation) {
-        await transaction.rollback();
-        return errorResponse(res, 404, "Peminjaman tidak ditemukan");
-      }
-
-      if (reservation.status !== "pending") {
-        await transaction.rollback();
-        return errorResponse(
-          res,
-          400,
-          "Hanya peminjaman dengan status pending yang bisa ditolak",
-        );
-      }
-
-      // Update reservation status and reject reason
-      await reservation.update(
-        { status: "rejected", reject_reason },
-        { transaction },
-      );
-
-      // Release asset back to available
-      const asset = await Assets.findByPk(reservation.asset_id, {
-        transaction,
-      });
-      if (asset) {
-        await asset.update({ status: "available" }, { transaction });
-      }
-
-      await transaction.commit();
-
-      return successResponse(
-        res,
-        200,
-        "Peminjaman berhasil ditolak",
-        reservation,
-      );
-    } catch (error) {
-      await transaction.rollback();
-      next(error);
-    }
-  },
-);
-
-// User/Admin: Return asset (mark as returned)
-router.put(
-  "/:id/return",
-  [param("id").isInt().withMessage("ID harus berupa angka")],
-  validate,
-  async (req, res, next) => {
-    const transaction = await sequelize.transaction();
-    try {
-      const { id } = req.params;
-      const user_id = req.user.id;
-
-      const reservation = await Reservations.findByPk(id, { transaction });
-
-      if (!reservation) {
-        await transaction.rollback();
-        return errorResponse(res, 404, "Peminjaman tidak ditemukan");
-      }
-
-      // Check if user is authorized (owner or admin)
-      if (req.user.role !== "admin" && reservation.user_id !== user_id) {
-        await transaction.rollback();
-        return errorResponse(res, 403, "Anda tidak berhak untuk operasi ini");
-      }
-
-      if (reservation.status !== "approved") {
-        await transaction.rollback();
-        return errorResponse(
-          res,
-          400,
-          "Hanya peminjaman yang approved bisa dikembalikan",
-        );
-      }
-
-      // Update reservation status
-      await reservation.update({ status: "returned" }, { transaction });
-
-      // Release asset back to available
-      const asset = await Assets.findByPk(reservation.asset_id, {
-        transaction,
-      });
-      if (asset) {
-        await asset.update({ status: "available" }, { transaction });
-      }
-
-      await transaction.commit();
-
-      return successResponse(
-        res,
-        200,
-        "Aset berhasil dikembalikan",
-        reservation,
-      );
-    } catch (error) {
-      await transaction.rollback();
-      next(error);
-    }
-  },
-);
-
-// User: Cancel pending reservation
-router.delete(
-  "/:id/cancel",
-  [param("id").isInt().withMessage("ID harus berupa angka")],
-  validate,
-  async (req, res, next) => {
-    const transaction = await sequelize.transaction();
-    try {
-      const { id } = req.params;
-      const user_id = req.user.id;
-
-      const reservation = await Reservations.findByPk(id, { transaction });
-
-      if (!reservation) {
-        await transaction.rollback();
-        return errorResponse(res, 404, "Peminjaman tidak ditemukan");
-      }
-
-      // Check if user is authorized (owner)
-      if (reservation.user_id !== user_id) {
-        await transaction.rollback();
-        return errorResponse(
-          res,
-          403,
-          "Anda hanya bisa membatalkan peminjaman milik Anda sendiri",
-        );
-      }
-
-      if (reservation.status !== "pending") {
-        await transaction.rollback();
-        return errorResponse(
-          res,
-          400,
-          "Hanya peminjaman dengan status pending yang bisa dibatalkan",
-        );
-      }
-
-      // Update reservation status
-      await reservation.update({ status: "rejected" }, { transaction });
-
-      // Release asset back to available
-      const asset = await Assets.findByPk(reservation.asset_id, {
-        transaction,
-      });
-      if (asset) {
-        await asset.update({ status: "available" }, { transaction });
-      }
-
-      await transaction.commit();
-
-      return successResponse(
-        res,
-        200,
-        "Permintaan peminjaman berhasil dibatalkan",
-        reservation,
-      );
-    } catch (error) {
-      await transaction.rollback();
-      next(error);
-    }
-  },
-);
-
 // User Dashboard: Get user statistics
 router.get("/dashboard/user-stats", async (req, res, next) => {
   try {
@@ -741,4 +436,308 @@ router.get(
   },
 );
 
+// Get reservation detail
+router.get(
+  "/:id",
+  verifyToken(),
+  [param("id").isInt().withMessage("ID harus berupa angka")],
+  validate,
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const reservationId = parseInt(id);
+
+      const reservation = await Reservations.findByPk(reservationId, {
+        include: [
+          {
+            association: "user",
+            attributes: ["id", "username", "full_name"],
+          },
+          {
+            association: "asset",
+            attributes: ["id", "name", "sku", "status"],
+          },
+        ],
+      });
+
+      if (!reservation) {
+        return errorResponse(res, 404, "Peminjaman tidak ditemukan");
+      }
+
+      return successResponse(
+        res,
+        200,
+        "Detail peminjaman berhasil diambil",
+        reservation,
+      );
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// Admin only: Get all reservations
+router.get("/", verifyToken(["admin"]), async (req, res, next) => {
+  try {
+    const { status, page = 1, limit = 10 } = req.query;
+    const offset = (page - 1) * limit;
+
+    const where = {};
+    if (status) where.status = status;
+
+    const { count, rows } = await Reservations.findAndCountAll({
+      where,
+      include: [
+        {
+          association: "user",
+          attributes: ["id", "username", "full_name"],
+        },
+        {
+          association: "asset",
+          attributes: ["id", "name", "sku"],
+        },
+      ],
+      offset,
+      limit,
+      order: [["id", "DESC"]],
+    });
+
+    const totalPages = Math.ceil(count / limit);
+
+    return successResponse(res, 200, "Daftar peminjaman berhasil diambil", {
+      data: rows,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages,
+        totalItems: count,
+        itemsPerPage: parseInt(limit),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Admin only: Approve reservation
+router.put(
+  "/:id/approve",
+  verifyToken(["admin"]),
+  [param("id").isInt().withMessage("ID harus berupa angka")],
+  validate,
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+
+      const reservation = await Reservations.findByPk(id);
+
+      if (!reservation) {
+        return errorResponse(res, 404, "Peminjaman tidak ditemukan");
+      }
+
+      if (reservation.status !== "pending") {
+        return errorResponse(
+          res,
+          400,
+          "Hanya peminjaman dengan status pending yang bisa disetujui",
+        );
+      }
+
+      await reservation.update({ status: "approved" });
+
+      return successResponse(
+        res,
+        200,
+        "Peminjaman berhasil disetujui",
+        reservation,
+      );
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// Admin only: Reject reservation
+router.put(
+  "/:id/reject",
+  verifyToken(["admin"]),
+  [
+    param("id").isInt().withMessage("ID harus berupa angka"),
+    body("reject_reason")
+      .trim()
+      .notEmpty()
+      .withMessage("Alasan penolakan harus diisi"),
+  ],
+  validate,
+  async (req, res, next) => {
+    const transaction = await sequelize.transaction();
+    try {
+      const { id } = req.params;
+      const { reject_reason } = req.body;
+
+      const reservation = await Reservations.findByPk(id, { transaction });
+
+      if (!reservation) {
+        await transaction.rollback();
+        return errorResponse(res, 404, "Peminjaman tidak ditemukan");
+      }
+
+      if (reservation.status !== "pending") {
+        await transaction.rollback();
+        return errorResponse(
+          res,
+          400,
+          "Hanya peminjaman dengan status pending yang bisa ditolak",
+        );
+      }
+
+      // Update reservation status and reject reason
+      await reservation.update(
+        { status: "rejected", reject_reason },
+        { transaction },
+      );
+
+      // Release asset back to available
+      const asset = await Assets.findByPk(reservation.asset_id, {
+        transaction,
+      });
+      if (asset) {
+        await asset.update({ status: "available" }, { transaction });
+      }
+
+      await transaction.commit();
+
+      return successResponse(
+        res,
+        200,
+        "Peminjaman berhasil ditolak",
+        reservation,
+      );
+    } catch (error) {
+      await transaction.rollback();
+      next(error);
+    }
+  },
+);
+
+// User/Admin: Return asset (mark as returned)
+router.put(
+  "/:id/return",
+  [param("id").isInt().withMessage("ID harus berupa angka")],
+  validate,
+  async (req, res, next) => {
+    const transaction = await sequelize.transaction();
+    try {
+      const { id } = req.params;
+      const user_id = req.user.id;
+
+      const reservation = await Reservations.findByPk(id, { transaction });
+
+      if (!reservation) {
+        await transaction.rollback();
+        return errorResponse(res, 404, "Peminjaman tidak ditemukan");
+      }
+
+      // Check if user is authorized (owner or admin)
+      if (req.user.role !== "admin" && reservation.user_id !== user_id) {
+        await transaction.rollback();
+        return errorResponse(res, 403, "Anda tidak berhak untuk operasi ini");
+      }
+
+      if (reservation.status !== "approved") {
+        await transaction.rollback();
+        return errorResponse(
+          res,
+          400,
+          "Hanya peminjaman yang approved bisa dikembalikan",
+        );
+      }
+
+      // Update reservation status
+      await reservation.update({ status: "returned" }, { transaction });
+
+      // Release asset back to available
+      const asset = await Assets.findByPk(reservation.asset_id, {
+        transaction,
+      });
+      if (asset) {
+        await asset.update({ status: "available" }, { transaction });
+      }
+
+      await transaction.commit();
+
+      return successResponse(
+        res,
+        200,
+        "Aset berhasil dikembalikan",
+        reservation,
+      );
+    } catch (error) {
+      await transaction.rollback();
+      next(error);
+    }
+  },
+);
+
+// User: Cancel pending reservation
+router.delete(
+  "/:id/cancel",
+  [param("id").isInt().withMessage("ID harus berupa angka")],
+  validate,
+  async (req, res, next) => {
+    const transaction = await sequelize.transaction();
+    try {
+      const { id } = req.params;
+      const user_id = req.user.id;
+
+      const reservation = await Reservations.findByPk(id, { transaction });
+
+      if (!reservation) {
+        await transaction.rollback();
+        return errorResponse(res, 404, "Peminjaman tidak ditemukan");
+      }
+
+      // Check if user is authorized (owner)
+      if (reservation.user_id !== user_id) {
+        await transaction.rollback();
+        return errorResponse(
+          res,
+          403,
+          "Anda hanya bisa membatalkan peminjaman milik Anda sendiri",
+        );
+      }
+
+      if (reservation.status !== "pending") {
+        await transaction.rollback();
+        return errorResponse(
+          res,
+          400,
+          "Hanya peminjaman dengan status pending yang bisa dibatalkan",
+        );
+      }
+
+      // Update reservation status
+      await reservation.update({ status: "rejected" }, { transaction });
+
+      // Release asset back to available
+      const asset = await Assets.findByPk(reservation.asset_id, {
+        transaction,
+      });
+      if (asset) {
+        await asset.update({ status: "available" }, { transaction });
+      }
+
+      await transaction.commit();
+
+      return successResponse(
+        res,
+        200,
+        "Permintaan peminjaman berhasil dibatalkan",
+        reservation,
+      );
+    } catch (error) {
+      await transaction.rollback();
+      next(error);
+    }
+  },
+);
 module.exports = router;
