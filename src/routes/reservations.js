@@ -448,7 +448,7 @@ router.get("/dashboard/user-stats", async (req, res, next) => {
           attributes: ["id", "name", "sku"],
         },
       ],
-      order: [["created_at", "DESC"]],
+      order: [["createdAt", "DESC"]],
       limit: 5,
     });
 
@@ -584,7 +584,7 @@ router.get(
             attributes: ["id", "name", "sku"],
           },
         ],
-        order: [["created_at", "DESC"]],
+        order: [["createdAt", "DESC"]],
         limit: 10,
       });
 
@@ -636,7 +636,7 @@ router.get(
             attributes: ["id", "name", "sku"],
           },
         ],
-        order: [["created_at", "DESC"]],
+        order: [["createdAt", "DESC"]],
       });
 
       // Get approval rate
