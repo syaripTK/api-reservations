@@ -2,7 +2,7 @@ const { Assets, Categories, Users, Reservations } = require("../../db/models");
 const fs = require("fs");
 const path = require("path");
 const bcrypt = require("bcrypt");
-const { Op } = require("sequelize");
+const { Op, ValidationError, UniqueConstraintError } = require("sequelize");
 
 class AdminService {
   // ====== ASSETS MANAGEMENT ======
@@ -24,6 +24,28 @@ class AdminService {
 
       return asset;
     } catch (error) {
+      if (error instanceof UniqueConstraintError) {
+        const errors = error.errors.map((e) => ({
+          field: e.path,
+          message: `${e.path} sudah digunakan`,
+        }));
+        const err = new Error("Data aset sudah ada");
+        err.status = 409;
+        err.errors = errors;
+        throw err;
+      }
+
+      if (error instanceof ValidationError) {
+        const errors = error.errors.map((e) => ({
+          field: e.path,
+          message: e.message,
+        }));
+        const err = new Error("Validasi data aset gagal");
+        err.status = 422;
+        err.errors = errors;
+        throw err;
+      }
+
       throw error;
     }
   }
