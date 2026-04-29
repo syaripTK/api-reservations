@@ -5,7 +5,7 @@ const bcrypt = require("bcrypt");
 const { Op } = require("sequelize");
 
 class AdminService {
-  // ====== ASSETS MANAGEMENT ======
+  
   static async createAsset(assetData) {
     try {
       let imageUrl = null;
@@ -47,9 +47,9 @@ class AdminService {
       if (assetData.description !== undefined)
         dataToUpdate.description = assetData.description;
 
-      // Handle image update
+      
       if (assetData.image_url) {
-        // Delete old image if exists
+        
         if (asset.image_url) {
           const oldImagePath = path.join(process.cwd(), "src", asset.image_url);
           if (fs.existsSync(oldImagePath)) {
@@ -76,7 +76,7 @@ class AdminService {
         throw error;
       }
 
-      // Delete image file
+      
       if (asset.image_url) {
         const imagePath = path.join(process.cwd(), "src", asset.image_url);
         if (fs.existsSync(imagePath)) {
@@ -154,7 +154,7 @@ class AdminService {
     }
   }
 
-  // ====== CATEGORIES MANAGEMENT ======
+  
   static async createCategory(categoryData) {
     try {
       const category = await Categories.create({
@@ -243,7 +243,7 @@ class AdminService {
     }
   }
 
-  // ====== USERS MANAGEMENT ======
+  
   static async getAllUsersAdmin(filter = {}) {
     try {
       const { role, page = 1, limit = 10 } = filter;
@@ -305,7 +305,7 @@ class AdminService {
     try {
       const { username, full_name, password, role } = userData;
 
-      // Check if username already exists
+      
       const existingUser = await Users.findOne({ where: { username } });
       if (existingUser) {
         const error = new Error("Username sudah digunakan");
@@ -313,7 +313,7 @@ class AdminService {
         throw error;
       }
 
-      // Hash password
+      
       const hashedPassword = await bcrypt.hash(password, 10);
 
       const user = await Users.create({
@@ -323,7 +323,7 @@ class AdminService {
         role: role || "user",
       });
 
-      // Return user without password
+      
       const userResponse = user.toJSON();
       delete userResponse.password;
       return userResponse;
@@ -345,7 +345,7 @@ class AdminService {
       const dataToUpdate = {};
 
       if (userData.username) {
-        // Check if new username is not already used by another user
+        
         const existingUser = await Users.findOne({
           where: { username: userData.username, id: { [Op.ne]: userId } },
         });
@@ -362,7 +362,7 @@ class AdminService {
 
       await user.update(dataToUpdate);
 
-      // Return user without password
+      
       const userResponse = user.toJSON();
       delete userResponse.password;
       return userResponse;
@@ -381,8 +381,8 @@ class AdminService {
         throw error;
       }
 
-      // Delete associated reservations first (optional - depends on your business logic)
-      // await user.destroy({ cascade: true });
+      
+      
 
       await user.destroy();
       return { message: "User berhasil dihapus" };

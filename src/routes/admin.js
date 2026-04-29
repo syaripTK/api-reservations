@@ -19,10 +19,10 @@ const uploadPhoto = require("../shared/middlewares/upload.middlware");
 
 const router = express.Router();
 
-// Protect all admin routes - only admin role allowed
+
 router.use(verifyToken(["admin"]));
 
-// ====== ASSETS ROUTES ======
+
 router.get("/assets", AdminController.getAllAssets);
 
 router.get(
@@ -55,7 +55,7 @@ router.delete(
   AdminController.deleteAsset,
 );
 
-// ====== CATEGORIES ROUTES ======
+
 router.get("/categories", AdminController.getAllCategories);
 
 router.get("/categories/:id", AdminController.getCategoryDetail);
@@ -81,7 +81,7 @@ router.delete(
   AdminController.deleteCategory,
 );
 
-// ====== USERS ROUTES ======
+
 router.get("/users", AdminController.getAllUsers);
 
 router.get(

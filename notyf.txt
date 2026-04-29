@@ -287,7 +287,4 @@ DOTENV
 Untuk mengamankan case sensitive yang berkaitan dengan database 
 
 
-===============
-NOTED
-===============
 

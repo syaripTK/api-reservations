@@ -8,10 +8,10 @@ const { successResponse, errorResponse } = require("../shared/utils/response");
 
 const router = express.Router();
 
-// Protect all reservation routes
+
 router.use(verifyToken());
 
-// Create reservation (with transaction)
+
 router.post(
   "/",
   [
@@ -28,7 +28,7 @@ router.post(
       const { asset_id, start_date, end_date } = req.body;
       const user_id = req.user.id;
 
-      // Validasi input date
+      
       const startDate = new Date(start_date);
       const endDate = new Date(end_date);
 
@@ -41,7 +41,7 @@ router.post(
         );
       }
 
-      // Check asset availability with lock
+      
       const asset = await Assets.findByPk(asset_id, {
         transaction,
         lock: Sequelize.Transaction.LOCK.UPDATE,
@@ -61,7 +61,7 @@ router.post(
         );
       }
 
-      // Create reservation
+      
       const reservation = await Reservations.create(
         {
           user_id,
@@ -73,10 +73,10 @@ router.post(
         { transaction },
       );
 
-      // Update asset status to booked
+      
       await asset.update({ status: "booked" }, { transaction });
 
-      // Commit transaction
+      
       await transaction.commit();
 
       return successResponse(
@@ -92,7 +92,7 @@ router.post(
   },
 );
 
-// Get my reservations
+
 router.get("/my-reservations", async (req, res, next) => {
   try {
     const user_id = req.user.id;
@@ -119,12 +119,12 @@ router.get("/my-reservations", async (req, res, next) => {
   }
 });
 
-// User Dashboard: Get user statistics
+
 router.get("/dashboard/user-stats", async (req, res, next) => {
   try {
     const user_id = req.user.id;
 
-    // Get reservation statistics
+    
     const reservationStats = await Reservations.findAll({
       where: { user_id },
       attributes: [
@@ -134,7 +134,7 @@ router.get("/dashboard/user-stats", async (req, res, next) => {
       group: ["status"],
     });
 
-    // Get recent reservations
+    
     const recentReservations = await Reservations.findAll({
       where: { user_id },
       include: [
@@ -147,7 +147,7 @@ router.get("/dashboard/user-stats", async (req, res, next) => {
       limit: 5,
     });
 
-    // Transform stats to object
+    
     const stats = {
       pending: 0,
       approved: 0,
@@ -236,7 +236,7 @@ router.get(
   verifyToken(["admin"]),
   async (req, res, next) => {
     try {
-      // Get reservation statistics by status
+      
       const reservationStats = await Reservations.findAll({
         attributes: [
           "status",
@@ -245,11 +245,11 @@ router.get(
         group: ["status"],
       });
 
-      // Get total counts
+      
       const totalReservations = await Reservations.count();
       const totalUsers = await Users.count();
 
-      // Transform stats to object
+      
       const stats = {
         total: totalReservations,
         pending: 0,
@@ -263,7 +263,7 @@ router.get(
         stats[stat.status] = parseInt(stat.dataValues.count);
       });
 
-      // Get recent reservations
+      
       const recentReservations = await Reservations.findAll({
         include: [
           {
@@ -294,7 +294,7 @@ router.get(
   },
 );
 
-// Admin Dashboard: Get summary and insights
+
 router.get(
   "/dashboard/admin-summary",
   verifyToken(["admin"]),
@@ -303,7 +303,7 @@ router.get(
       const { startDate, endDate } = req.query;
       const where = {};
 
-      // Add date filter if provided
+      
       if (startDate || endDate) {
         where.created_at = {};
         if (startDate) {
@@ -314,7 +314,7 @@ router.get(
         }
       }
 
-      // Get pending reservations
+      
       const pendingReservations = await Reservations.findAll({
         where: { ...where, status: "pending" },
         include: [
@@ -330,7 +330,7 @@ router.get(
         order: [["createdAt", "DESC"]],
       });
 
-      // Get approval rate
+      
       const totalReservations = await Reservations.count({ where });
       const approvedCount = await Reservations.count({
         where: { ...where, status: "approved" },
@@ -344,7 +344,7 @@ router.get(
           ? Math.round((approvedCount / totalReservations) * 100)
           : 0;
 
-      // Get active reservations (approved and not returned)
+      
       const activeReservations = await Reservations.findAll({
         where: { status: "approved" },
         include: [
@@ -360,7 +360,7 @@ router.get(
         order: [["end_date", "ASC"]],
       });
 
-      // Get overdue reservations (approved with end_date passed)
+      
       const now = new Date();
       const overdueReservations = await Reservations.findAll({
         where: {
@@ -381,7 +381,6 @@ router.get(
         ],
       });
 
-      // Get user activity (top users by reservation count)
       const userActivity = await Users.findAll({
         attributes: [
           "id",
@@ -432,7 +431,7 @@ router.get(
   },
 );
 
-// Get reservation detail
+
 router.get(
   "/:id",
   verifyToken(),
@@ -472,7 +471,7 @@ router.get(
   },
 );
 
-// Admin only: Get all reservations
+
 router.get("/", verifyToken(["admin"]), async (req, res, next) => {
   try {
     const { status, page = 1, limit = 10 } = req.query;
@@ -514,7 +513,7 @@ router.get("/", verifyToken(["admin"]), async (req, res, next) => {
   }
 });
 
-// Admin only: Approve reservation
+
 router.put(
   "/:id/approve",
   verifyToken(["admin"]),
@@ -552,7 +551,7 @@ router.put(
   },
 );
 
-// Admin only: Reject reservation
+
 router.put(
   "/:id/reject",
   verifyToken(["admin"]),
@@ -613,7 +612,7 @@ router.put(
   },
 );
 
-// User/Admin: Return asset (mark as returned)
+
 router.put(
   "/:id/return",
   [param("id").isInt().withMessage("ID harus berupa angka")],
@@ -631,7 +630,7 @@ router.put(
         return errorResponse(res, 404, "Peminjaman tidak ditemukan");
       }
 
-      // Check if user is authorized (owner or admin)
+      
       if (req.user.role !== "admin" && reservation.user_id !== user_id) {
         await transaction.rollback();
         return errorResponse(res, 403, "Anda tidak berhak untuk operasi ini");
@@ -646,10 +645,10 @@ router.put(
         );
       }
 
-      // Update reservation status
+      
       await reservation.update({ status: "returned" }, { transaction });
 
-      // Release asset back to available
+      
       const asset = await Assets.findByPk(reservation.asset_id, {
         transaction,
       });
@@ -672,7 +671,7 @@ router.put(
   },
 );
 
-// User: Cancel pending reservation
+
 router.delete(
   "/:id/cancel",
   [param("id").isInt().withMessage("ID harus berupa angka")],
@@ -690,7 +689,7 @@ router.delete(
         return errorResponse(res, 404, "Peminjaman tidak ditemukan");
       }
 
-      // Check if user is authorized (owner)
+      
       if (reservation.user_id !== user_id) {
         await transaction.rollback();
         return errorResponse(
@@ -709,10 +708,10 @@ router.delete(
         );
       }
 
-      // Update reservation status
+      
       await reservation.update({ status: "rejected" }, { transaction });
 
-      // Release asset back to available
+      
       const asset = await Assets.findByPk(reservation.asset_id, {
         transaction,
       });

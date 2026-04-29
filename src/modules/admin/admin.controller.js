@@ -2,7 +2,7 @@ const AdminService = require("./admin.service");
 const { successResponse } = require("../../shared/utils/response");
 
 class AdminController {
-  // ====== ASSETS CONTROLLER ======
+  
   static async createAsset(req, res, next) {
     try {
       const assetData = {
@@ -113,7 +113,7 @@ class AdminController {
     }
   }
 
-  // ====== CATEGORIES CONTROLLER ======
+  
   static async createCategory(req, res, next) {
     try {
       const categoryData = {
@@ -195,7 +195,7 @@ class AdminController {
     }
   }
 
-  // ====== USERS CONTROLLER ======
+  
   static async getAllUsers(req, res, next) {
     try {
       const { role, page, limit } = req.query;
